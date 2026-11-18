@@ -28,3 +28,29 @@ class AdapterTLS(HTTPAdapter):
         return super().init_poolmanager(*args, **kwargs)
 
 
+#-------------------------------------------------------------
+# Petición a la API
+#-------------------------------------------------------------
+
+
+def download_data():
+
+    session = requests.Session()
+    session.mount("https://", AdapterTLS())
+
+    response = session.get(URL, timeout=60)
+
+    response.raise_for_status()
+
+    return response.json()
+
+
+if __name__ == '__main__':
+    data = download_data()
+    petrol_stations = data['ListaEESSPrecio']
+    print('Número de estaciones:', len(petrol_stations))
+    print('Claves de una estación:')
+    for key in petrol_stations[0].keys():
+        print('  -', key)
+    print('-------------------------------------')
+    print(data)

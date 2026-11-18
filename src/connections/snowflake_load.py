@@ -3,7 +3,6 @@ import os
 import json
 from dotenv import load_dotenv
 from datetime import datetime, timezone
-from src.connections.api_connect import download_data
 from src.utils.config import get_base_dir, get_records_book_dir
 
 
@@ -29,6 +28,7 @@ def connect():
             'database' : os.environ['SNOWFLAKE_DATABASE'],
             'schema' : os.environ['SNOWFLAKE_SCHEMA'],
             'enable_server_session_keep_alive_auto_detection': True,
+            'paramstyle' : "qmark",
         }
 
     try:
@@ -105,7 +105,7 @@ def insert_data(conn, data):
     ingestion_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     payload = json.dumps(data, ensure_ascii=False)
 
-    print(f'Tamaño del payload: {len(payload.encode('utf-8')) / 1e6:.1f} MB')
+    print(f"Tamaño del payload: {len(payload.encode('utf-8')) / 1e6:.1f} MB")
 
     query = f"""INSERT INTO {schema}.FUEL_PRICES_JSON (ingestion_ts, payload)
                 SELECT TO_TIMESTAMP_NTZ(?), PARSE_JSON(?)
@@ -130,12 +130,9 @@ def register(ts, rows, stations):
 
     file = get_records_book_dir()
 
-    with open(file, 'a') as f:
-        f.write(f'Hora de registro: {ts}, Nuevos registros: {rows}, Gasolineras registradas: {stations}\n')
+    with open(file, 'a', encoding='utf-8') as f:
+        f.write(f"Hora de registro: {ts}, Nuevos registros: {rows}, Gasolineras registradas: {stations}\n")
 
     return print('Se han registrado los cambios')
 
-if __name__ == '__main__':
 
-    register(14, ['a', 'b'], 1)
-    register(18, ['a', 'b', 'c'], 1)

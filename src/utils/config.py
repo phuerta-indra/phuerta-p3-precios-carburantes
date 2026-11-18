@@ -26,3 +26,12 @@ def get_gold_path():
     """
     BASE_DIR = get_base_dir()
     return BASE_DIR / "data" / "gold"
+
+
+def get_records_book_dir():
+    """
+    Obtiene la ruta del libro de registros.
+    """
+    BASE_DIR = get_base_dir()
+    return BASE_DIR / "records" / "records_book.txt"
+    

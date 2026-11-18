@@ -1,8 +1,10 @@
 import snowflake.connector
 import os
+import json
 from dotenv import load_dotenv
+from datetime import datetime, timezone
 from src.connections.api_connect import download_data
-from src.utils.config import get_base_dir
+from src.utils.config import get_base_dir, get_records_book_dir
 
 
 #-------------------------------------------------------------
@@ -91,13 +93,49 @@ def create_table(conn):
     return
     
 
+#-------------------------------------------------------------
+# Función para insertar los datos en la tabla
+#-------------------------------------------------------------
 
 
+def insert_data(conn, data):
+
+    schema = os.environ['SNOWFLAKE_SCHEMA']
+
+    ingestion_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    payload = json.dumps(data, ensure_ascii=False)
+
+    print(f'Tamaño del payload: {len(payload.encode('utf-8')) / 1e6:.1f} MB')
+
+    query = f"""INSERT INTO {schema}.FUEL_PRICES_JSON (ingestion_ts, payload)
+                SELECT TO_TIMESTAMP_NTZ(?), PARSE_JSON(?)
+                """
+
+    with conn.cursor() as cur:
+        cur.execute(query, (ingestion_ts, payload))
+        new_rows = cur.rowcount # Número de nuevos registros
+
+    register(ingestion_ts, new_rows, len(data["ListaEESSPrecio"]))
+
+    
+    return ingestion_ts
 
 
+#-------------------------------------------------------------
+# Función para registrar cada registro en un txt
+#-------------------------------------------------------------
 
+
+def register(ts, rows, stations):
+
+    file = get_records_book_dir()
+
+    with open(file, 'a') as f:
+        f.write(f'Hora de registro: {ts}, Nuevos registros: {rows}, Gasolineras registradas: {stations}\n')
+
+    return print('Se han registrado los cambios')
 
 if __name__ == '__main__':
-    conn = connect()
-    create_table(conn)
 
+    register(14, ['a', 'b'], 1)
+    register(18, ['a', 'b', 'c'], 1)

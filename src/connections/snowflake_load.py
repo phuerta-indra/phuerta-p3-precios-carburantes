@@ -112,27 +112,38 @@ def insert_data(conn, data):
                 """
 
     with conn.cursor() as cur:
-        cur.execute(query, (ingestion_ts, payload))
-        new_rows = cur.rowcount # Número de nuevos registros
+        try:
+            cur.execute(query, (ingestion_ts, payload))
+            new_rows = cur.rowcount # Número de nuevos registros
 
-    register(ingestion_ts, new_rows, len(data["ListaEESSPrecio"]))
+            register(cur, ingestion_ts, new_rows, len(data["ListaEESSPrecio"]), 'OK')
 
+        except Exception:
+            register(cur, ingestion_ts, new_rows, len(data["ListaEESSPrecio"]), 'ERROR')
+            raise
     
     return ingestion_ts
 
 
 #-------------------------------------------------------------
-# Función para registrar cada registro en un txt
+# Función para registrar cada nueva entrada en una nueva tabla
 #-------------------------------------------------------------
 
 
-def register(ts, rows, stations):
+def register(cur, ts, new_rows, stations, status):
 
-    file = get_records_book_dir()
+    schema = os.environ['SNOWFLAKE_SCHEMA']
 
-    with open(file, 'a', encoding='utf-8') as f:
-        f.write(f"Hora de registro: {ts}, Nuevos registros: {rows}, Gasolineras registradas: {stations}\n")
 
-    return print('Se han registrado los cambios')
+    logged_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    
+    cur.execute(
+        f"INSERT INTO {schema}.INGESTION_LOG (ingestion_ts, new_rows, n_stations, status, logged_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (ts, new_rows, stations, status, logged_at),
+    )
+
+    return print("Registrado correctamente!")
+
 
 

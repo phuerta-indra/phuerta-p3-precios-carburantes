@@ -116,10 +116,10 @@ def insert_data(conn, data):
             cur.execute(query, (ingestion_ts, payload))
             new_rows = cur.rowcount # Número de nuevos registros
 
-            register(cur, ingestion_ts, new_rows, len(data["ListaEESSPrecio"]), 'OK')
+            register(cur, ingestion_ts, new_rows, len(data["ListaEESSPrecio"]), data['ResultadoConsulta'])
 
         except Exception:
-            register(cur, ingestion_ts, new_rows, len(data["ListaEESSPrecio"]), 'ERROR')
+            register(cur, ingestion_ts, new_rows, len(data["ListaEESSPrecio"]), data['ResultadoConsulta'])
             raise
     
     return ingestion_ts

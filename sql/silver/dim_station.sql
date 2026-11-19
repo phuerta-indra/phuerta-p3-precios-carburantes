@@ -22,5 +22,8 @@ QUALIFY ROW_NUMBER() OVER (
         ) = 1;
 
 
-SELECT * FROM SILVER.DIM_STATION 
-ORDER BY IDEESS DESC
+-- Se convierte el ID de cada estación como un pk de la dimensión
+
+ALTER TABLE SILVER.DIM_STATION
+ADD PRIMARY KEY (ideess);
+

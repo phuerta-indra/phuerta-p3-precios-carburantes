@@ -7,3 +7,5 @@ CREATE SCHEMA IF NOT EXISTS CARBURANTES_DB.GOLD;
 -- Esquema para guardar secretos (token github)
 CREATE SCHEMA IF NOT EXISTS config;
 
+
+

@@ -42,8 +42,3 @@ QUALIFY ROW_NUMBER() OVER (
     PARTITION BY ideess, product, ingestion_ts ORDER BY price_eur_l
 ) = 1;                             -- garantiza unicidad
 
-
-SELECT ingestion_ts, product, COUNT(*) AS n
-FROM silver.fct_price_snapshot
-GROUP BY ingestion_ts, product
-ORDER BY ingestion_ts, product;

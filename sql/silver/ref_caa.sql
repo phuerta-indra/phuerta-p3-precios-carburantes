@@ -2,7 +2,7 @@
 -- Genera una tabla con la equivalencia de los ids de cada comunidad autónoma
 -- En capa gold se hará un JOIN con dim_station para unificar información
 
-CREATE OR REPLACE TABLE ref_ccaa (
+CREATE OR REPLACE TABLE REF_CCAA (
     id_ccaa STRING NOT NULL,
     ccaa    STRING NOT NULL
 ) AS

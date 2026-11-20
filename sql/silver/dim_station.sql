@@ -27,3 +27,37 @@ QUALIFY ROW_NUMBER() OVER (
 ALTER TABLE SILVER.DIM_STATION
 ADD PRIMARY KEY (ideess);
 
+
+-- Como los nombres de las estaciones no está unificado (ej. BP TORRENTE, BP MECO ambas son BP) las normalizamos en     una nueva columna llamada marca.
+
+ALTER TABLE silver.dim_station ADD COLUMN marca STRING;
+
+UPDATE silver.dim_station
+SET marca = CASE
+    WHEN rotulo ILIKE '%REPSOL%'   THEN 'REPSOL'
+    WHEN rotulo ILIKE '%CAMPSA%'   THEN 'CAMPSA'
+    WHEN rotulo ILIKE '%PETRONOR%' THEN 'PETRONOR'
+    WHEN rotulo ILIKE '%CEPSA%' OR rotulo ILIKE '%MOEVE%'
+      OR rotulo ILIKE '%MOOVE%' OR rotulo ILIKE '%MOEWE%' THEN 'MOEVE (CEPSA)'
+    WHEN REGEXP_LIKE(rotulo, $$.*(^|[^A-Za-z])B\.?P\.?([^A-Za-z]|$).*$$, 'i') THEN 'BP'
+    WHEN rotulo ILIKE '%SHELL%'       THEN 'SHELL'
+    WHEN rotulo ILIKE '%GALP%'        THEN 'GALP'
+    WHEN rotulo ILIKE '%DISA%'        THEN 'DISA'
+    WHEN rotulo ILIKE '%PETROPRIX%' OR rotulo ILIKE '%PERTROPRIX%' THEN 'PETROPRIX'
+    WHEN rotulo ILIKE '%BALLENOIL%'   THEN 'BALLENOIL'
+    WHEN rotulo ILIKE '%PLENERGY%'    THEN 'PLENERGY'
+    WHEN rotulo ILIKE '%AVIA%'        THEN 'AVIA'
+    WHEN rotulo ILIKE '%Q8%'          THEN 'Q8'
+    WHEN rotulo ILIKE '%ALCAMPO%'     THEN 'ALCAMPO'
+    WHEN rotulo ILIKE '%CARREFOUR%' OR rotulo ILIKE '%CARRREFOUR%' THEN 'CARREFOUR'
+    WHEN rotulo ILIKE '%LECLERC%'     THEN 'E.LECLERC'
+    WHEN rotulo ILIKE '%NATURGY%'     THEN 'NATURGY'
+    WHEN rotulo ILIKE '%AN ENERGETICOS%' OR rotulo ILIKE '%AN ENERGÉTICOS%' THEN 'AN ENERGÉTICOS'
+    WHEN rotulo IS NULL
+      OR rotulo ILIKE ANY ('%SIN ROTULO%', '%SIN RÓTULO%', 'NINGUNO', 'NO TIENE', 'NO ROTULO',
+                           'SIN DETERMINAR', 'SIN ASIGNAR', 'NO HAY', 'LIBRE', '-')
+                                             THEN 'SIN RÓTULO'
+    ELSE 'OTRAS'
+END;
+
+

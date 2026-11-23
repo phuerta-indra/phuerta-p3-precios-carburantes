@@ -110,7 +110,14 @@ BEGIN
       'UTC',
       'Europe/Madrid',
       f.ingestion_ts
-    ) AS ingestion_ts_madrid,
+    )::TIMESTAMP_NTZ AS ingestion_ts_madrid,
+    HOUR(
+      CONVERT_TIMEZONE(
+        'UTC',
+        'Europe/Madrid',
+        f.ingestion_ts
+      )
+    ) AS hora_madrid,
     d.pk_date AS fk_date,
     s.pk_station AS fk_station,
     p.pk_product AS fk_product,

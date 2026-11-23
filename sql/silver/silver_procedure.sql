@@ -125,11 +125,11 @@ BEGIN
         TRY_TO_DECIMAL(
           REPLACE(NULLIF(f.value:"Latitud"::VARCHAR, ''), ',', '.'),
           10, 6
-        ) AS latitud,
+        ) AS lat_raw,
         TRY_TO_DECIMAL(
           REPLACE(NULLIF(f.value:"Longitud (WGS84)"::VARCHAR, ''), ',', '.'),
           10, 6
-        ) AS longitud
+        ) AS lon_raw
       FROM STREAM_BATCH AS b,
            LATERAL FLATTEN(
              INPUT => b.payload:"ListaEESSPrecio"
@@ -139,6 +139,23 @@ BEGIN
         PARTITION BY f.value:"IDEESS"::VARCHAR
         ORDER BY b.ingestion_ts DESC
       ) = 1
+    ),
+    -- Gestión de coordenadas (rango válido: España incl. Canarias).
+    --  · correctas  -> se mantienen
+    --  · intercambiadas (lat <-> lon) -> se corrigen
+    --  · ceros, nulos o fuera de rango -> NULL en ambas a la vez
+    geo_clean AS (
+      SELECT
+        sr.*,
+        CASE
+          WHEN lat_raw BETWEEN 27 AND 44 AND lon_raw BETWEEN -19 AND 5 THEN lat_raw
+          WHEN lon_raw BETWEEN 27 AND 44 AND lat_raw BETWEEN -19 AND 5 THEN lon_raw
+        END AS latitud,
+        CASE
+          WHEN lat_raw BETWEEN 27 AND 44 AND lon_raw BETWEEN -19 AND 5 THEN lon_raw
+          WHEN lon_raw BETWEEN 27 AND 44 AND lat_raw BETWEEN -19 AND 5 THEN lat_raw
+        END AS longitud
+      FROM station_rows AS sr
     )
     SELECT
       ideess,
@@ -193,7 +210,7 @@ BEGIN
           ) THEN 'SIN RÓTULO'
         ELSE 'OTRAS'
       END AS marca
-    FROM station_rows
+    FROM geo_clean
   ) AS source
     ON target.ideess = source.ideess
   WHEN MATCHED THEN UPDATE SET
@@ -202,8 +219,9 @@ BEGIN
     municipio = source.municipio,
     provincia = source.provincia,
     id_ccaa   = source.id_ccaa,
-    latitud   = source.latitud,
-    longitud  = source.longitud,
+    -- Si el lote trae coordenada inválida, se conserva la última válida.
+    latitud   = COALESCE(source.latitud,  target.latitud),
+    longitud  = COALESCE(source.longitud, target.longitud),
     marca     = source.marca
   WHEN NOT MATCHED THEN INSERT (
     ideess, rotulo, direccion, municipio, provincia,
@@ -273,10 +291,3 @@ EXCEPTION
     RAISE;
 END;
 $$;
-
-
-
-
-
-
-

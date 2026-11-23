@@ -15,6 +15,13 @@
     - [Ejecución](#ejecución)
     - [Automatización con Github Actions](#automatización-con-github-actions)
   - [Modelado de datos](#modelado-de-datos)
+    - [Capa RAW](#capa-raw)
+    - [Capa SILVER](#capa-silver)
+      - [Transformaciones](#transformaciones)
+        - [Hallazgo 1: Comunidades Autónomas](#hallazgo-1-comunidades-autónomas)
+        - [Hallazgo 2: Coordenadas](#hallazgo-2-coordenadas)
+    - [Capa GOLD](#capa-gold)
+    - [Automatización del modelado](#automatización-del-modelado)
 
 ## Introducción
 
@@ -95,4 +102,67 @@ El flujo se puede consultar el el fichero .yml siguente: [`github-actions-carbur
 4) Ejecutar la ingesta usando: los secrets previamente creados en Github y el `main.py`
 
 ## Modelado de datos
+
+El proyecto sigue una arquitectura Medallion y modelo de estrella que iré desgranando capa por capa:
+
+### Capa RAW
+
+En la capa RAW se han creado dos tablas: 
+
+- Una tabla para almacenar los datos en bruto
+- Otra tabla para registrar cada ingesta
+
+En `FUEL_PRICES_JSON` se alamacenan dos cosas: la hora de ingesta de los datos, y los datos estructurados en un fichero `.json` tal cual como vienen de origen.
+
+Por otro lado, `INGESTION_LOG` almacena unos logs por cada ingesta: la hora de ingesta, el numero de estaciones que se detectan, las filas que se insertan en `FUEL_PRICES_JSON` y su estatus.
+
+Esta tabla permite no solo llevar un registro de las ingestas, sino que también proporciona unas verificaciones sencillas para detectar posibles anomalías en la ingesta de datos.
+
+### [Capa SILVER](sql/silver/)
+
+En la capa SILVER ya se empiezan a modelar los datos, se crean algunas dimensiones: `DIM_PRODUCT` y `DIM_STATION` que recogen las características de los productos y gasolineras. Y la tabla de hechos `FCT_PRICE_SNAPSHOT` cuya **granularidad** se define como una fila por estación y por producto que ofrece, es decir:
+
+| IDEESS | Combustible | Precio |
+| ------ | ----------- | ------ |
+| 2403   | Gasolina 95 | 1.599  |
+| 2403   | Gasóleo A   | 1.869  |
+
+Además, he añadido una tabla auxiliar para identificar las comunidades autónomas a través de su ID. Ya que en los datos que proporciona la API solamente identifica las comunidades por su ID. Así que para poder utilizar esos campos en el dashboard.
+
+#### Transformaciones
+
+En este caso, no hizo mucha falta hacer demasiadas transformaciones para normalizar y limpiar datos gracias a que la API proporciona los datos bien estructurados en un `.json`. 
+
+La estructura de este fichero principalmente se puede reducir a una lista de datos por estación de servicio y la fecha y hora en la que se han recogido esos datos. Por tanto, para modelar y construir tablas simplemente habrá que poner el foco en esa lista dentro del fichero `.json`.
+
+##### Hallazgo 1: Comunidades Autónomas
+
+Como ya se mencionó anteriormente, los datos originales se refieren a las comunidades autónomas mediante un id. Este identificador, no es útil para construir un dashboard ya que no aporta información si no se conoce a que corresponde.
+
+Para optimizar este pequeño déficit, se ha construido una tabla auxiliar con las referencias de cada id con su comunidad.
+
+##### Hallazgo 2: Coordenadas
+
+En algunos casos (concretamente 4) hay coordenadas cuya longitud y latitud valen 0, esto es claramente un error principalmente porque esas coordenadas no están dentro del país. Este error se ha gestionado identificando esos valores y asignándoles el valor de NULL, para que no puedan influir en otras métricas.
+
+Por otro lado, hay una estación que tiene la longitud y latitud intercambiadas. Se ha supuesto que están intercambiadas porque colocadas correctamente son las coordenads de Tui, Pontevedra. Simplemente se ha añadido una gestión de rangos para estructurar correctamente estas coordenads.
+
+### [Capa GOLD](sql/gold/)
+
+En la capa GOLD solamente se incluyen las tablas que necesitaré para crear el dashboard. Las tablas son las siguientes:
+
+- Dimensión fechas
+- Dimensión productos
+- Dimensión estaciones
+- Hechos precio del fuel
+
+### [Automatización del modelado](sql/tasks/)
+
+Para que las tablas de las capas SILVER y GOLD, se vayan actualizando a medida que se ingesten nuevos registros en la capa RAW se crearon un par de Tasks en Snowflake.
+
+Resumidamente, su funcionamiento es el siguiente: con un steam se registran los nuevos registros en RAW, si los hay la tarea de la capa SILVER crea y actualiza las tablas que se vieron en [SILVER](#capa-silver), y una vez acaba llama a la task de la capa gold que termina de modelar las tablas de la capa SILVER como se vió en [GOLD](#capa-gold).
+
+
+
+
 

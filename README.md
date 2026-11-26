@@ -21,7 +21,9 @@
         - [Hallazgo 1: Comunidades Autónomas](#hallazgo-1-comunidades-autónomas)
         - [Hallazgo 2: Coordenadas](#hallazgo-2-coordenadas)
     - [Capa GOLD](#capa-gold)
+    - [Modelo de Estrella](#modelo-de-estrella)
     - [Automatización del modelado](#automatización-del-modelado)
+  - [Dashboard Power BI](#dashboard-power-bi)
 
 ## Introducción
 
@@ -53,15 +55,16 @@ carburantes/
 └── requirements.txt          # Fichero de dependencias
 ```
 
+## Ejecución del proyecto
+
 Para ejecutar las conexiones mediante `main.py` es necesario tener instaladas las dependencias. Para eso, ejecutar este comando en su entorno virtual:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Ejecución del proyecto
-
-En este proyecto no es necesario realizar una ejecución manual para ver los resultados, gracias a que se ha automatizado toda la pipeline.
+> [!WARNING]
+> En este proyecto no es necesario realizar una ejecución manual para ver los resultados, gracias a que se ha automatizado toda la pipeline.
 
 ## Obtención de datos
 
@@ -120,7 +123,11 @@ Esta tabla permite no solo llevar un registro de las ingestas, sino que también
 
 ### [Capa SILVER](sql/silver/)
 
-En la capa SILVER ya se empiezan a modelar los datos, se crean algunas dimensiones: `DIM_PRODUCT` y `DIM_STATION` que recogen las características de los productos y gasolineras. Y la tabla de hechos `FCT_PRICE_SNAPSHOT` cuya **granularidad** se define como una fila por estación y por producto que ofrece, es decir:
+En la capa SILVER ya se empiezan a modelar los datos, se crean algunas dimensiones: `DIM_PRODUCT` y `DIM_STATION` que recogen las características de los productos y gasolineras. Y la tabla de hechos `FCT_PRICE_SNAPSHOT` 
+
+<a id="granularidad"></a>
+
+> **Granularidad:** fila por estación y por producto que ofrece, es decir:
 
 | IDEESS | Combustible | Precio |
 | ------ | ----------- | ------ |
@@ -145,7 +152,13 @@ Para optimizar este pequeño déficit, se ha construido una tabla auxiliar con l
 
 En algunos casos (concretamente 4) hay coordenadas cuya longitud y latitud valen 0, esto es claramente un error principalmente porque esas coordenadas no están dentro del país. Este error se ha gestionado identificando esos valores y asignándoles el valor de NULL, para que no puedan influir en otras métricas.
 
-Por otro lado, hay una estación que tiene la longitud y latitud intercambiadas. Se ha supuesto que están intercambiadas porque colocadas correctamente son las coordenads de Tui, Pontevedra. Simplemente se ha añadido una gestión de rangos para estructurar correctamente estas coordenads.
+Por otro lado, hay una estación que tiene la longitud y latitud intercambiadas. Se ha supuesto que están intercambiadas porque colocadas correctamente son las coordenads de Tui, Pontevedra. 
+
+| IDEESS | ROTULO | MUNICIPIO | LAT | LON |
+|---:|---|---|---:|---:|
+| 16268 | GUAY | Tui | -8.659472 | 42.037472 |
+
+Para corregirlo, simplemente se ha añadido una gestión de rangos para estructurar correctamente estas coordenadas.
 
 ### [Capa GOLD](sql/gold/)
 
@@ -156,13 +169,26 @@ En la capa GOLD solamente se incluyen las tablas que necesitaré para crear el d
 - Dimensión estaciones
 - Hechos precio del fuel
 
+### Modelo de Estrella
+
+El modelo de estrella de este proyecto está compuesto por tres dimensiones: estación, producto y fecha, y una tabla de hechos donde cada registro es una estación por producto, como se definía en la [granularidad](#granularidad)
+
+![Modelo Estrella](img/modelo-estrella.png)
+
 ### [Automatización del modelado](sql/tasks/)
 
 Para que las tablas de las capas SILVER y GOLD, se vayan actualizando a medida que se ingesten nuevos registros en la capa RAW se crearon un par de Tasks en Snowflake.
 
 Resumidamente, su funcionamiento es el siguiente: con un steam se registran los nuevos registros en RAW, si los hay la tarea de la capa SILVER crea y actualiza las tablas que se vieron en [SILVER](#capa-silver), y una vez acaba llama a la task de la capa gold que termina de modelar las tablas de la capa SILVER como se vió en [GOLD](#capa-gold).
 
+## Dashboard Power BI
 
+En el dashboard de este proyecto se muestran los datos en 4 hojas: resumen ejecutivo, mercado y marca, geografía y estaciones, y una hoja de conclusiones que ayude al usuario a elegir la gasolinera que más le convenga en función de sus necesidades.
 
+![Resumen Ejecutivo](img/pbi1.png)
 
+![Mercado y Marcas](img/pbi2.png)
 
+![Geografía y Estaciones](img/pbi3.png)
+
+![Conclusiones](img/pbi4.png)

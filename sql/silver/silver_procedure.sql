@@ -44,7 +44,7 @@ BEGIN
   );
 
   -- Tabla temporal disponible solo durante esta ejecución.
-  CREATE OR REPLACE PROCEDURE SCOPED TEMP TABLE STREAM_BATCH (
+  CREATE OR REPLACE TEMPORARY TABLE STREAM_BATCH (
     ingestion_ts TIMESTAMP_NTZ,
     payload      VARIANT
   );
@@ -220,8 +220,8 @@ BEGIN
     provincia = source.provincia,
     id_ccaa   = source.id_ccaa,
     -- Si el lote trae coordenada inválida, se conserva la última válida.
-    latitud   = COALESCE(source.latitud,  target.latitud),
-    longitud  = COALESCE(source.longitud, target.longitud),
+    latitud   = COALESCE(source.latitud,  NULLIF(target.latitud,  0)),
+    longitud  = COALESCE(source.longitud, NULLIF(target.longitud, 0)),
     marca     = source.marca
   WHEN NOT MATCHED THEN INSERT (
     ideess, rotulo, direccion, municipio, provincia,
